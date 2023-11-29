@@ -1,43 +1,27 @@
+import socket
 import psutil
-import cpuinfo
+import pickle
 
-# Obtener el uso de CPU actual
-def mostrar_rendimiento_cpu():
+# Definir las direcciones IP y puertos de los servidores
+servers = [("192.168.1.1", 5000), ("192.168.1.2", 5000), ("192.168.1.3", 5000)]
 
-    uso_cpu = psutil.cpu_percent()
+# Crear el socket del cliente
+client_sockets = [socket.socket(socket.AF_INET, socket.SOCK_STREAM) for _ in range(3)]
 
-    print(f"Uso de CPU: {uso_cpu}%")
+# Conectar a los servidores
+for i, (server_ip, server_port) in enumerate(servers):
+    client_sockets[i].connect((server_ip, server_port))
 
-mostrar_rendimiento_cpu()
+# Obtener la información del sistema
+cpu_usage = psutil.cpu_percent(interval=1, percpu=True)
+memory_info = psutil.virtual_memory()
+network_info = psutil.net_if_addrs()
+system_info = {"cpu_usage": cpu_usage, "memory_info": memory_info, "network_info": network_info}
 
-# Obtener el uso de memoria actual
-def mostrar_rendimiento_memoria():
+# Enviar la información del sistema a los servidores
+for s in client_sockets:
+    s.send(pickle.dumps(system_info))
 
-    uso_memoria = psutil.virtual_memory().percent
-
-    print(f"Uso de memoria: {uso_memoria}%")
-
-mostrar_rendimiento_memoria()
-
-# Obtener las estadísticas de red actuales
-def mostrar_rendimiento_red():
-
-    estadisticas_red = psutil.net_io_counters()
-
-    rendimiento_mb = estadisticas_red.bytes_sent / (1024 * 1024)
-
-    print(f"Estadísticas de red (MB/s): {rendimiento_mb:.2f}")
-
-mostrar_rendimiento_red()
-
-# Obtener la temperatura de la CPU
-def obtener_temperatura_cpu():
-    info = cpuinfo.get_cpu_info()
-
-    if 'temperature' in info:
-        temperatura = info['temperature']
-        print(f"Temperatura de la CPU: {temperatura}°C")
-    else:
-        print("No se pudo obtener la temperatura de la CPU.")
-
-obtener_temperatura_cpu()
+# Cerrar las conexiones
+for s in client_sockets:
+    s.close()
